@@ -1,0 +1,102 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box; /* Ensures padding and borders don't expand the box */
+}
+
+body {
+  background: linear-gradient(150deg,rgba(20, 0, 151, 0.792), rgba(0, 0, 63, 0.7));
+  overflow-x: hidden; /* Prevents horizontal scroll */
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Arial, sans-serif;
+}
+
+.app {
+  width: 100%;
+  padding: 2rem;
+  overflow-x: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.search-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+  max-width: 70rem;
+  justify-content: right;
+  padding-right: 2rem;
+}
+
+.search-bar input[type="text"] {
+  padding: 10px 15px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid #000000;
+  outline: none;
+  width: 300px; /* Adjust width as needed */
+}
+
+.video-section {
+  display: flex;
+  max-width: 100%;
+  gap: 20px;
+  margin: 0 auto;
+  overflow-x: hidden;
+  height: 100%;
+}
+
+
+.video-container video {
+  border-radius: 30px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.thumbnails {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow-y: auto;
+  overflow-x: hidden;
+ /* Limits height for vertical scrolling */
+  width: 280px; /* Fixed width for consistent scrolling */
+  padding-right: 10px; /* Space for scrollbar */
+}
+
+.thumbnail {
+  cursor: pointer;
+}
+
+.thumbnail-label {
+  text-align: left;
+  margin-top: 0;
+}
+
+.thumbnail-preview {
+  display: flex;
+  flex-direction: row;
+}
+
+.thumbnail img {
+  width: 150px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 4px;
+  transition: transform 0.2s;
+}
+
+.thumbnail:hover img {
+  transform: scale(1.1);
+}
+
+.thumbnail p {
+  margin-left: 10px;
+  font-size: 14px;
+  text-align: left;
+}
