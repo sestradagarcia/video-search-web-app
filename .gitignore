@@ -1,2 +1,4 @@
 #large files
 #video-search-react/src/assets/MovieMix.mp4
+*.
+__pycache__/
