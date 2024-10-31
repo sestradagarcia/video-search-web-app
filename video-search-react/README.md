@@ -7,8 +7,9 @@ Currently, two official plugins are available:
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
 - [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-get the back end running-> cd into the backend folder and run python3 search_app.py
-cd into the react folder (video-search-react)
+get the back end running-> cd into the backend folder (cd Backend) and run python3 search_app.py
+cd into the react folder from main folder (cd video-search-react)
 run npm i 
 run npm run dev 
+open the local host link to be directed to the local web app 
 
