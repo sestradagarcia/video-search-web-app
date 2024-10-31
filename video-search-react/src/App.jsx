@@ -58,21 +58,21 @@ function App() {
 
     if (response.ok) {
       const data = await response.json();
-      // setResults(data);
+      setResults(data);
 
-      // // Sequentially generate thumbnails for each scene
-      // for (const scene of data) {
-      //   await generateThumbnail(scene.timestamp);
-      // }
-              // Duplicate each scene result for testing
-              const multipliedResults = data.flatMap(scene => Array(4).fill({ ...scene })); // Change 3 to however many copies you want
+      // Sequentially generate thumbnails for each scene
+      for (const scene of data) {
+        await generateThumbnail(scene.timestamp);
+      }
+              // // Duplicate each scene result for testing
+              // const multipliedResults = data.flatMap(scene => Array(4).fill({ ...scene })); // Change 3 to however many copies you want
 
-              setResults(multipliedResults);
+              // setResults(multipliedResults);
       
-              // Sequentially generate thumbnails for each scene
-              for (const scene of multipliedResults) {
-                  await generateThumbnail(scene.timestamp);
-              }
+              // // Sequentially generate thumbnails for each scene
+              // for (const scene of multipliedResults) {
+              //     await generateThumbnail(scene.timestamp);
+              // }
       setUserQuery(''); // Reset search input
     }
   };
