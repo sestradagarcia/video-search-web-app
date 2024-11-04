@@ -37,7 +37,7 @@ function App() {
 
   const handleThumbnailClick = (timestamp) => {
     if (videoRef.current) {
-      videoRef.current.currentTime = timestamp;
+      videoRef.current.currentTime = Math.max(0, timestamp - 1);
       videoRef.current.play();
     }
   };

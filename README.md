@@ -1,5 +1,7 @@
-- get the back end running-> cd into the backend folder (cd Backend) and run python3 search_app.py
-- cd into the react folder from main folder (cd video-search-react)
-- run npm i 
-- run npm run dev 
-- open the local host link to be directed to the local web app 
+- cd into the backend folder (cd Backend) from main folder (video-search-web-app)
+- install the backend dependencies by running "pip install -r requirements.txt"
+- get the back end running-> run "python3 search_app.py"
+- cd into the react folder (cd video-search-react) from main folder (video-search-web-app)
+- run "npm i"
+- run "npm run dev"
+- open the local host link to be directed to the local web app for example "http://localhost:5173/"
