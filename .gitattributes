@@ -1,3 +1,4 @@
-Backend/video-and-json/MovieMix.mp4 filter=lfs diff=lfs merge=lfs -text
 video-search-react/src/assets/MovieMix.mp4 filter=lfs diff=lfs merge=lfs -text
+*.zip filter=lfs diff=lfs merge=lfs -text
+video-search-react/src/assets/video-search-movie.mp4 filter=lfs diff=lfs merge=lfs -text
 *.zip filter=lfs diff=lfs merge=lfs -text

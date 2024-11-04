@@ -76,7 +76,7 @@ def search_and_merge(user_embedding, sceneChunk_start, sceneChunk_end, sceneChun
     return merged_results[:top_k] if top_k is not None else merged_results
 
 # Function to generate scenes with timestamps and thumbnails
-def get_scene_timestamps_with_thumbnails(user_embedding,  sceneChunk_start, sceneChunk_end, sceneChunk_embedding, sceneChunk_description, video_path):
+def get_scene_data(user_embedding,  sceneChunk_start, sceneChunk_end, sceneChunk_embedding, sceneChunk_description):
     # First, get the merged scene results
     results = search_and_merge(
         user_embedding, 

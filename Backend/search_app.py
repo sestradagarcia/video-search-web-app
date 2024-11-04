@@ -1,16 +1,13 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import json
-from video_scene_search import get_scene_timestamps_with_thumbnails, get_user_embedding 
+from video_scene_search import get_scene_data, get_user_embedding 
 
 app = Flask(__name__)
 CORS(app, resources={r"/search": {"origins": "http://localhost:5173"}}) #Enabled for react app route
 
-# Path to the video file
-video_path = "video-and-json/MovieMix.mp4"
-
 # Load JSON data
-with open('video-and-json/MovieMix_1_sec_chunk.json', 'r') as f:
+with open('video-and-json/video-search-movie.json', 'r') as f:
     data = json.load(f)
 
 sceneChunk_embedding = [scene['vector'] for scene in data]
@@ -27,13 +24,13 @@ def search():
         
         user_embedding = get_user_embedding(user_query)
         
-        results_with_thumbnails = get_scene_timestamps_with_thumbnails(
+        results = get_scene_data(
             user_embedding, sceneChunk_start, sceneChunk_end,
-            sceneChunk_embedding, sceneChunk_description, video_path
+            sceneChunk_embedding, sceneChunk_description
         )
         
-        print("Results:", results_with_thumbnails)
-        return jsonify(results_with_thumbnails)
+        print("Results:", results)
+        return jsonify(results)
     except Exception as e:
         print("Error:", e)
         return jsonify({"error": str(e)}), 500

@@ -1,12 +1,8 @@
-from video_scene_search import get_user_embedding, get_scene_timestamps_with_thumbnails  # Import functions
+from video_scene_search import get_user_embedding, get_scene_data
 import json
-from video_scene_search import get_scene_timestamps_with_thumbnails, get_user_embedding 
-
-# Path to the video file
-video_path = "video-and-json/MovieMix.mp4"
 
 # Load JSON data
-with open('video-and-json/MovieMix_1_sec_chunk.json', 'r') as f:
+with open('video-and-json/video-search-movie.json', 'r') as f:
     data = json.load(f)
 
 sceneChunk_embedding = [scene['vector'] for scene in data]
@@ -29,9 +25,9 @@ while True:
     user_embedding = get_user_embedding(user_query)
 
     # Get scenes with timestamps and thumbnails
-    scenes = get_scene_timestamps_with_thumbnails(
+    scenes = get_scene_data(
             user_embedding, sceneChunk_start, sceneChunk_end,
-            sceneChunk_embedding, sceneChunk_description, video_path
+            sceneChunk_embedding, sceneChunk_description
         )
     
     # Print results for the user's query
@@ -39,7 +35,6 @@ while True:
         for scene in scenes:
             print(f"- User query: {user_query}\n"
                   f"Scene starting timestamp at: {scene['timestamp']}\n"
-                  #f"Thumbnail: {scene['thumbnail']}\n"
             )
     else:
         print(f"No matching scenes found for query: {user_query}\n")
