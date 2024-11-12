@@ -29,6 +29,7 @@ while True:
             user_embedding, sceneChunk_start, sceneChunk_end,
             sceneChunk_embedding, sceneChunk_description
         )
+    import pdb; pdb.set_trace()
     
     # Print results for the user's query
     if scenes:

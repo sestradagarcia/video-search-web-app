@@ -1,35 +1,78 @@
 import numpy as np
+import openai
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 
 # Load the sentence-transformers model for embedding generation
-model = SentenceTransformer('all-MiniLM-L6-v2')
+model_miniLM = SentenceTransformer('all-MiniLM-L6-v2')
+# model_miniLM_12 = SentenceTransformer('all-MiniLM-L12-v2')
+# model_mpnet = SentenceTransformer('paraphrase-mpnet-base-v2')
+
+# Set up the Azure OpenAI API key and endpoint
+openai.api_type = "azure"
+openai.api_base = "https://<your-resource-name>.openai.azure.com/"
+openai.api_version = "2022-12-01"
+openai.api_key = "<your-api-key>"
+
+# Function to get embeddings from OpenAI API
+def get_azure_embedding(query):
+    response = openai.Embedding.create(
+        input=query,
+        engine="text-embedding-ada-002"
+    )
+    return response['data'][0]['embedding']
 
 # Encode the user's query into a vector
-def get_user_embedding(query):
-    user_embedding = model.encode([query]).tolist()  # Convert to list
+def get_user_embedding(query, model_name='all-MiniLM-L6-v2'):
+    if model_name == 'all-MiniLM-L6-v2':
+        user_embedding = model_miniLM.encode([query]).tolist()  # Convert to list
+    elif model_name == 'all-MiniLM-L12-v2':
+        user_embedding = model_miniLM_12.encode([query]).tolist()  # Convert to list
+    elif model_name == 'text-embedding-ada-002':
+        user_embedding = get_azure_embedding(query)
+    elif model_name == 'model_mpnet':
+        user_embedding = model_mpnet.encode([query]).tolist()
+    else:
+        raise ValueError(f"Unsupported model name: {model_name}")
     return user_embedding
 
-# Function to perform vector search between user_embedding & scene_embeddings and sort by embedding start time
+import numpy as np
+import logging
+
 def vector_search(user_embedding, sceneChunk_start, sceneChunk_end, sceneChunk_embedding, sceneChunk_description, similarity_threshold=0.4):
-    # Convert lists to numpy arrays for consine similarity search 
+    # Check if sceneChunk_embedding or user_embedding are empty
+    if len(sceneChunk_embedding) == 0 or len(user_embedding) == 0:
+        logging.error("Embedding arrays are empty. Ensure data is properly loaded.")
+        return []  # Return an empty list to prevent further processing
+
+    # Convert lists to numpy arrays for cosine similarity search
     sceneChunk_embeddings_np = np.array(sceneChunk_embedding)
-    user_embedding_np = np.array(user_embedding).reshape(1, -1)
-    
-    # Calculate cosine similarities between user embedding and scene embeddings
+    user_embedding_np = np.array(user_embedding).reshape(1, -1)  # Reshape to 2D array for cosine_similarity
+
+    # Check if sceneChunk_embeddings_np is 2D
+    if sceneChunk_embeddings_np.ndim != 2:
+        logging.error("sceneChunk_embeddings_np is not a 2D array.")
+        return []
+
+    # Calculate cosine similarities
     similarities = cosine_similarity(user_embedding_np, sceneChunk_embeddings_np)[0]
 
-    # Filter results based on similarity[i] being above similarity threshold
+    # Filter results based on similarity threshold
     filtered_results = [
         (sceneChunk_start[i], sceneChunk_end[i], sceneChunk_description[i], similarities[i]) 
         for i in range(len(similarities)) if similarities[i] >= similarity_threshold
     ]
 
     # Sort filtered results by start time
-    filtered_results.sort(key=lambda x: x[0])  # Sort by start time
+    filtered_results.sort(key=lambda x: x[0])
+    logging.debug(f"Filtered results: {filtered_results}")
 
-    # Return filtered results for further processing
     return filtered_results
+
 
 # Function to merge scene chunks based on time proximity stated by time_gap_threshold argument
 def merge_vector_scene_chunks(filtered_results, time_gap_threshold=60):
@@ -47,22 +90,14 @@ def merge_vector_scene_chunks(filtered_results, time_gap_threshold=60):
                 current_group.append((start, end, description, similarity))
             else:
                 # Finalise the previous group
-                earliest_timestamp = current_group[0][0]
-                combined_description = ' '.join([desc for _, _, desc, _ in current_group])
-                avg_similarity = np.mean([sim for _, _, _, sim in current_group])
-                merged_results.append((earliest_timestamp, avg_similarity, combined_description))
-                
-                # Start a new group
+                merged_results.append(current_group)
                 current_group = [(start, end, description, similarity)]
 
-    # Handle the last group
     if current_group:
-        earliest_timestamp = current_group[0][0]
-        avg_similarity = np.mean([sim for _, _, _, sim in current_group])
-        combined_description = ' '.join([desc for _, _, desc, _ in current_group])
-        merged_results.append((earliest_timestamp, avg_similarity, combined_description))
+        merged_results.append(current_group)
 
     return merged_results
+
 
 # Function to search and merge scenes
 def search_and_merge(user_embedding, sceneChunk_start, sceneChunk_end, sceneChunk_embedding, sceneChunk_description, top_k=None, similarity_threshold=0.45, time_gap_threshold=10):
@@ -76,26 +111,28 @@ def search_and_merge(user_embedding, sceneChunk_start, sceneChunk_end, sceneChun
     return merged_results[:top_k] if top_k is not None else merged_results
 
 # Function to generate scenes with timestamps and thumbnails
-def get_scene_data(user_embedding,  sceneChunk_start, sceneChunk_end, sceneChunk_embedding, sceneChunk_description):
-    # First, get the merged scene results
-    results = search_and_merge(
-        user_embedding, 
-        sceneChunk_start, 
-        sceneChunk_end, 
-        sceneChunk_embedding, 
-        sceneChunk_description
-    )
+import logging
 
-    # Extract only the timestamps and generate thumbnails
+def get_scene_data(user_embedding, sceneChunk_start, sceneChunk_end, sceneChunk_embedding, sceneChunk_description):
+    # Perform vector search and handle empty results
+    results = vector_search(user_embedding, sceneChunk_start, sceneChunk_end, sceneChunk_embedding, sceneChunk_description)
+
+    if not results:
+        logging.warning("No results found after vector search.")
+        return []
+
+    # Process complete results only
     scenes_with_thumbnails = []
-    for i, result in enumerate(results):  # Use enumerate to get both index and result tuple
-        timestamp = result[0]  # Get the timestamp from the merged result
-        similarity = result[1]
-        scene_data = {
-            "label": f"Scene {i + 1}",
-            "timestamp": timestamp,
-            "similarity": similarity, 
-        }
-        scenes_with_thumbnails.append(scene_data)
-    
+    for i, result in enumerate(results):
+        if len(result) == 4:
+            timestamp, similarity, description, end_time = result
+            scenes_with_thumbnails.append({
+                "timestamp": timestamp,
+                "similarity": similarity,
+                "description": description,
+                "end_time": end_time
+            })
+        else:
+            logging.error(f"Result at index {i} does not have enough elements: {result}")
+
     return scenes_with_thumbnails
