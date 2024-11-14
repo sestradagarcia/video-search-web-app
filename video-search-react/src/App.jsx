@@ -8,12 +8,23 @@ function App() {
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef(null);
   const [jsonFile, setJsonFile] = useState(null);
+  const [jsonFiles, setJsonFiles] = useState([]); // List of available JSON files
+  const [selectedJsonFile, setSelectedJsonFile] = useState('');
   const [videoSrc, setVideoSrc] = useState('');
   const [overlayText, setOverlayText] = useState('');
   const [chunkDescriptions, setChunkDescriptions] = useState([]);
   const [showSceneDescription, setShowSceneDescription] = useState(false);
+  const [similarityThreshold, setSimilarityThreshold] = useState(0.45);
 
-  // Handle JSON file upload
+  useEffect(() => {
+    // Fetch the list of JSON files on component mount
+    fetch('http://localhost:5000/list-json-files')
+      .then(response => response.json())
+      .then(data => setJsonFiles(data.json_files || []))
+      .catch(error => console.error("Error fetching JSON file list:", error));
+  }, []);
+
+  // Handle JSON file upload from manual selection
   const handleJsonUpload = (e) => {
     setJsonFile(e.target.files[0]);
   };
@@ -49,68 +60,36 @@ function App() {
     }
   };
 
-// Generate thumbnails if the data structure is complete
-const generateThumbnailsBatch = async (scenes, batchSize = 3) => {
-  for (let i = 0; i < scenes.length; i += batchSize) {
-    const batch = scenes.slice(i, i + batchSize);
-    await Promise.all(
-      batch
-        .filter((scene) => scene.timestamp && typeof scene.similarity === 'number') // Filter complete scenes
-        .map((scene) => generateThumbnail(scene.timestamp))
-    );
-  }
-};
+  // Upload selected JSON file from dropdown list
+  const uploadSelectedJsonFile = async () => {
+    if (selectedJsonFile) {
+      try {
+        const response = await fetch(`http://localhost:5000/upload-json?file=${selectedJsonFile}`, {
+          method: 'POST',
+        });
+        const data = await response.json();
+        console.log("Uploaded selected JSON file data:", data);
+        if (response.ok) {
+          const videoPath = `http://localhost:5000${data.video_file}`;
+          setVideoSrc(videoPath);
+          setChunkDescriptions(data.scenes.map(scene => scene.text || ''));
+          console.log("Uploaded videoPath data:", videoPath);
 
-
-  const generateThumbnail = (timestamp) => {
-    return new Promise((resolve) => {
-      const thumbnailVideo = document.createElement('video');
-      thumbnailVideo.src = videoSrc;
-      thumbnailVideo.crossOrigin = "anonymous";
-  
-      thumbnailVideo.onloadedmetadata = () => {
-        if (isFinite(timestamp)) {
-          thumbnailVideo.currentTime = timestamp;
+          if (videoRef.current) {
+            videoRef.current.load();
+            videoRef.current.play();
+          }
         } else {
-          console.error("Invalid timestamp for setting currentTime:", timestamp);
-          resolve(); // Resolve even if there's an error to prevent hanging promises
+          throw new Error(data.error || 'Failed to upload JSON file');
         }
-      };
-  
-      thumbnailVideo.onseeked = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 200;
-        canvas.height = 150;
-        const context = canvas.getContext('2d');
-  
-        context.drawImage(thumbnailVideo, 0, 0, canvas.width, canvas.height);
-        const thumbnailURL = canvas.toDataURL('image/png');
-        setResults((prevResults) =>
-          prevResults.map((scene) =>
-            scene.timestamp === timestamp ? { ...scene, thumbnail: thumbnailURL } : scene
-          )
-        );
-  
-        thumbnailVideo.remove();
-        resolve();
-      };
-  
-      thumbnailVideo.onerror = (error) => {
-        console.error("Error generating thumbnail for timestamp", timestamp, error);
-        resolve();
-      };
-    });
-  };
-  
-  // Inside the JSX where similarity is displayed
-  // <p>Similarity: {typeof scene.similarity === 'number' ? scene.similarity.toFixed(2) : 'N/A'}</p>
-  
-
-  const handleThumbnailClick = (timestamp) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = Math.max(0, timestamp - 1);
-      videoRef.current.play();
+      } catch (error) {
+        console.error("Error uploading JSON file:", error);
+      }
     }
+  };
+
+  const handleJsonFileChange = (e) => {
+    setSelectedJsonFile(e.target.value);
   };
 
   const handleSearch = async (query) => {
@@ -120,7 +99,7 @@ const generateThumbnailsBatch = async (scenes, batchSize = 3) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query: query, similarity_threshold: similarityThreshold }),
       });
 
       if (!response.ok) {
@@ -182,15 +161,13 @@ const generateThumbnailsBatch = async (scenes, batchSize = 3) => {
     }
   };
 
-  // Update overlay text based on video time
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     const updateOverlay = () => {
       const currentSecond = Math.floor(video.currentTime);
-      
-      // Show each description for every 1-second interval
+
       if (showSceneDescription) {
         setOverlayText(chunkDescriptions[currentSecond] || '');
       }
@@ -218,9 +195,36 @@ const generateThumbnailsBatch = async (scenes, batchSize = 3) => {
         </button>
       </div>
 
+      <div className="settings">
+        <label>
+          Similarity Threshold: {similarityThreshold}
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={similarityThreshold}
+            onChange={(e) => setSimilarityThreshold(parseFloat(e.target.value))}
+          />
+        </label>
+      </div>
+
       <div className="upload-section">
         <input type="file" accept=".json" onChange={handleJsonUpload} />
         <button onClick={uploadJsonFile}>Upload JSON</button>
+
+        <select onChange={handleJsonFileChange} value={selectedJsonFile}>
+          <option value="">Select a JSON file</option>
+          {jsonFiles.map((file) => (
+            <option key={file} value={file}>
+              {file}
+            </option>
+          ))}
+        </select>
+        <button onClick={uploadSelectedJsonFile} disabled={!selectedJsonFile}>
+          Load Selected JSON
+        </button>
+
         <button onClick={() => setShowSceneDescription((prev) => !prev)}>
           {showSceneDescription ? 'Hide Scene Description' : 'Show Scene Description'}
         </button>
@@ -234,20 +238,18 @@ const generateThumbnailsBatch = async (scenes, batchSize = 3) => {
           </video>
           {overlayText && <div className="overlay-text">{overlayText}</div>}
         </div>
-        
-        <div className="thumbnails">
-  {results
-    .filter((scene) => scene.thumbnail && scene.timestamp) // Display only scenes with valid thumbnails
-    .map((scene, index) => (
-      <div key={index} className="thumbnail" onClick={() => handleThumbnailClick(scene.timestamp)}>
-        <h3 className="thumbnail-label">{scene.description || 'Scene'}</h3>
-        <img src={scene.thumbnail} alt={`Thumbnail for ${scene.description || 'Scene'}`} />
-        <p>Timestamp: {scene.timestamp}s</p>
-        <p>Similarity: {typeof scene.similarity === 'number' ? scene.similarity.toFixed(2) : 'N/A'}</p>
-      </div>
-    ))}
-</div>
 
+        <div className="thumbnails">
+          {results
+            .filter((scene) => scene.thumbnail && scene.timestamp) // Display only scenes with valid thumbnails
+            .map((scene, index) => (
+              <div key={index} className="thumbnail" onClick={() => handleThumbnailClick(scene.timestamp)}>
+                <img src={scene.thumbnail} alt={`Thumbnail for ${scene.description || 'Scene'}`} />
+                <p>Timestamp: {scene.timestamp}s</p>
+                <p>Similarity: {scene.similarity.toFixed(2)}%</p>
+              </div>
+            ))}
+        </div>
       </div>
     </div>
   );

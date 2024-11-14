@@ -9,14 +9,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 # Load the sentence-transformers model for embedding generation
 model_miniLM = SentenceTransformer('all-MiniLM-L6-v2')
-# model_miniLM_12 = SentenceTransformer('all-MiniLM-L12-v2')
-# model_mpnet = SentenceTransformer('paraphrase-mpnet-base-v2')
-
-# Set up the Azure OpenAI API key and endpoint
-openai.api_type = "azure"
-openai.api_base = "https://<your-resource-name>.openai.azure.com/"
-openai.api_version = "2022-12-01"
-openai.api_key = "<your-api-key>"
+# 
 
 # Function to get embeddings from OpenAI API
 def get_azure_embedding(query):
@@ -31,17 +24,17 @@ def get_user_embedding(query, model_name='all-MiniLM-L6-v2'):
     if model_name == 'all-MiniLM-L6-v2':
         user_embedding = model_miniLM.encode([query]).tolist()  # Convert to list
     elif model_name == 'all-MiniLM-L12-v2':
+        model_miniLM_12 = SentenceTransformer('all-MiniLM-L12-v2')
         user_embedding = model_miniLM_12.encode([query]).tolist()  # Convert to list
     elif model_name == 'text-embedding-ada-002':
         user_embedding = get_azure_embedding(query)
     elif model_name == 'model_mpnet':
+        model_mpnet = SentenceTransformer('paraphrase-mpnet-base-v2')
         user_embedding = model_mpnet.encode([query]).tolist()
     else:
         raise ValueError(f"Unsupported model name: {model_name}")
     return user_embedding
 
-import numpy as np
-import logging
 
 def vector_search(user_embedding, sceneChunk_start, sceneChunk_end, sceneChunk_embedding, sceneChunk_description, similarity_threshold=0.4):
     # Check if sceneChunk_embedding or user_embedding are empty
@@ -110,12 +103,10 @@ def search_and_merge(user_embedding, sceneChunk_start, sceneChunk_end, sceneChun
     # Return only the top_k results if specified
     return merged_results[:top_k] if top_k is not None else merged_results
 
-# Function to generate scenes with timestamps and thumbnails
-import logging
 
-def get_scene_data(user_embedding, sceneChunk_start, sceneChunk_end, sceneChunk_embedding, sceneChunk_description):
+def get_scene_data(user_embedding, sceneChunk_start, sceneChunk_end, sceneChunk_embedding, sceneChunk_description, similarity_threshold=0.45):
     # Perform vector search and handle empty results
-    results = vector_search(user_embedding, sceneChunk_start, sceneChunk_end, sceneChunk_embedding, sceneChunk_description)
+    results = vector_search(user_embedding, sceneChunk_start, sceneChunk_end, sceneChunk_embedding, sceneChunk_description, similarity_threshold)
 
     if not results:
         logging.warning("No results found after vector search.")
@@ -124,13 +115,14 @@ def get_scene_data(user_embedding, sceneChunk_start, sceneChunk_end, sceneChunk_
     # Process complete results only
     scenes_with_thumbnails = []
     for i, result in enumerate(results):
+        # Unpack start, end, description, similarity correctly
         if len(result) == 4:
-            timestamp, similarity, description, end_time = result
+            start, end, description, similarity = result
             scenes_with_thumbnails.append({
-                "timestamp": timestamp,
-                "similarity": similarity,
+                "timestamp": start,
+                "end_time": end,
                 "description": description,
-                "end_time": end_time
+                "similarity": round(similarity * 100, 2)  # Convert to percentage and round
             })
         else:
             logging.error(f"Result at index {i} does not have enough elements: {result}")

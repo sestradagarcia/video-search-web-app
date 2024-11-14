@@ -9,6 +9,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})  # Adjust this if you want a more
 
 # VIDEO_DIRECTORY = 'video-search-react/src/assets'
 VIDEO_DIRECTORY = os.path.abspath('video-search-react/src/assets')
+JSON_DIRECTORY = os.path.abspath('Backend/video-and-json')
 
 # Serve video files from the video directory
 @app.route('/videos/<path:filename>')
@@ -44,11 +45,21 @@ def upload_json():
     global sceneChunk_embedding, sceneChunk_start, sceneChunk_end, sceneChunk_description
 
     try:
-        if 'jsonFile' not in request.files:
-            return jsonify({"error": "No JSON file part"}), 400
+        # Case 1: File upload
+        if 'jsonFile' in request.files:
+            json_file = request.files['jsonFile']
+            new_data = json.load(json_file)
+        # Case 2: Load from server directory using filename parameter
+        elif 'file' in request.args:
+            file_name = request.args.get('file')
+            file_path = os.path.join(JSON_DIRECTORY, file_name)
+            if not os.path.exists(file_path):
+                return jsonify({"error": "File does not exist on the server"}), 404
 
-        json_file = request.files['jsonFile']
-        new_data = json.load(json_file)
+            with open(file_path, 'r') as f:
+                new_data = json.load(f)
+        else:
+            return jsonify({"error": "No JSON file provided"}), 400
 
         # Extract video filename from JSON and verify existence
         video_file_name = new_data[0].get("file") if new_data and "file" in new_data[0] else None
@@ -66,20 +77,33 @@ def upload_json():
             "video_file": f'/videos/{os.path.basename(video_file_name)}',
             "scenes": [{"text": scene["text"]} for scene in new_data]
         }), 200
+
     except Exception as e:
-        logging.error("Error:", e)
+        logging.error("Error processing JSON file:", e)
         return jsonify({"error": str(e)}), 500
 
+
+# Route to list available JSON files
+@app.route('/list-json-files', methods=['GET'])
+def list_json_files():
+    try:
+        json_files = [f for f in os.listdir(JSON_DIRECTORY) if f.endswith('.json')]
+        return jsonify({"json_files": json_files}), 200
+    except Exception as e:
+        logging.error("Error listing JSON files:", e)
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/search', methods=['POST'])
 def search():
     try:
         user_query = request.json.get('query')
         user_embedding = get_user_embedding(user_query)
+
+        similarity_threshold = request.json.get('similarity_threshold', 0.45)
         
         results = get_scene_data(
             user_embedding, sceneChunk_start, sceneChunk_end,
-            sceneChunk_embedding, sceneChunk_description
+            sceneChunk_embedding, sceneChunk_description, similarity_threshold
         )
         
         return jsonify(results)
